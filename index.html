@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0d6efd">
+<title>Mi Registro</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: -apple-system, system-ui, sans-serif;
+    background: #f2f4f7;
+    margin: 0;
+    padding: 16px;
+    color: #1a1a1a;
+    max-width: 500px;
+    margin-inline: auto;
+  }
+  h1 { font-size: 20px; text-align: center; margin: 8px 0 20px; }
+  .card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: #444; }
+  input {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+    border: 1px solid #d5d9e0;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    background: #fafbfc;
+  }
+  input:focus { outline: none; border-color: #0d6efd; background: #fff; }
+  button {
+    width: 100%;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: 600;
+    background: #0d6efd;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+  button:active { background: #0a58ca; }
+  .stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .stat {
+    background: #f8f9fb;
+    border-radius: 10px;
+    padding: 10px 6px;
+    text-align: center;
+  }
+  .stat .num { font-size: 18px; font-weight: 700; color: #0d6efd; }
+  .stat .lbl { font-size: 11px; color: #666; margin-top: 2px; }
+  .registro {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #eee;
+    font-size: 14px;
+  }
+  .registro:last-child { border-bottom: none; }
+  .registro .fecha { font-weight: 600; color: #333; }
+  .registro .datos { color: #555; font-size: 13px; }
+  .borrar {
+    background: #fee;
+    color: #c00;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    cursor: pointer;
+    width: auto;
+  }
+  #chart { width: 100%; height: 140px; margin-top: 8px; }
+  .vacio { text-align: center; color: #999; font-size: 14px; padding: 20px; }
+  .backup { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .backup button {
+    padding: 12px;
+    font-size: 14px;
+    background: #eef2f8;
+    color: #0d6efd;
+  }
+  .backup button:active { background: #dde6f5; }
+  .aviso {
+    text-align: center;
+    font-size: 12px;
+    color: #888;
+    margin-top: 12px;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+
+<h1>📊 Mi Registro Diario</h1>
+
+<div class="card">
+  <label>📅 Fecha</label>
+  <input type="date" id="fecha">
+  <label>⚖️ Peso (kg)</label>
+  <input type="number" step="0.1" id="peso" placeholder="Ej: 72.5">
+  <label>🏃 Kilómetros trotados</label>
+  <input type="number" step="0.01" id="km" placeholder="Ej: 5.2">
+  <label>🔥 Calorías perdidas</label>
+  <input type="number" id="cal" placeholder="Ej: 350">
+  <button onclick="guardar()">💾 Guardar registro</button>
+</div>
+
+<div class="card">
+  <div class="stats">
+    <div class="stat"><div class="num" id="sPeso">-</div><div class="lbl">Peso actual</div></div>
+    <div class="stat"><div class="num" id="sKm">0</div><div class="lbl">Km totales</div></div>
+    <div class="stat"><div class="num" id="sCal">0</div><div class="lbl">Calorías totales</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <div style="font-size:13px;font-weight:600;color:#444;margin-bottom:6px;">📈 Evolución del peso</div>
+  <svg id="chart" viewBox="0 0 300 140" preserveAspectRatio="none"></svg>
+</div>
+
+<div class="card">
+  <div style="font-size:13px;font-weight:600;color:#444;margin-bottom:6px;">📋 Historial</div>
+  <div id="historial"></div>
+</div>
+
+<div class="card">
+  <div style="font-size:13px;font-weight:600;color:#444;margin-bottom:10px;">💾 Respaldo de datos</div>
+  <div class="backup">
+    <button onclick="exportar()">📤 Exportar</button>
+    <button onclick="document.getElementById('importFile').click()">📥 Importar</button>
+  </div>
+  <input type="file" id="importFile" accept=".json" style="display:none" onchange="importar(event)">
+  <div class="aviso">
+    Tus datos se guardan solo en este celular.<br>
+    Exporta de vez en cuando por si acaso. ✨
+  </div>
+</div>
+
+<script>
+const KEY = 'miRegistroPeso';
+
+document.getElementById('fecha').value = new Date().toISOString().split('T')[0];
+
+function getDatos() {
+  return JSON.parse(localStorage.getItem(KEY) || '[]');
+}
+function setDatos(d) {
+  localStorage.setItem(KEY, JSON.stringify(d));
+}
+
+function guardar() {
+  const fecha = document.getElementById('fecha').value;
+  const peso = parseFloat(document.getElementById('peso').value);
+  const km = parseFloat(document.getElementById('km').value) || 0;
+  const cal = parseFloat(document.getElementById('cal').value) || 0;
+
+  if (!fecha) return alert('Elige una fecha');
+  if (!peso || peso <= 0) return alert('Escribe tu peso');
+
+  const datos = getDatos();
+  const idx = datos.findIndex(d => d.fecha === fecha);
+  const registro = { fecha, peso, km, cal };
+
+  if (idx >= 0) {
+    if (!confirm('Ya existe un registro para esa fecha. ¿Reemplazar?')) return;
+    datos[idx] = registro;
+  } else {
+    datos.push(registro);
+  }
+
+  datos.sort((a,b) => a.fecha.localeCompare(b.fecha));
+  setDatos(datos);
+  render();
+
+  document.getElementById('peso').value = '';
+  document.getElementById('km').value = '';
+  document.getElementById('cal').value = '';
+}
+
+function borrar(fecha) {
+  if (!confirm('¿Borrar el registro del ' + fecha + '?')) return;
+  setDatos(getDatos().filter(d => d.fecha !== fecha));
+  render();
+}
+
+function exportar() {
+  const datos = getDatos();
+  if (datos.length === 0) return alert('No hay datos para exportar');
+  const blob = new Blob([JSON.stringify(datos, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const hoy = new Date().toISOString().split('T')[0];
+  a.href = url;
+  a.download = 'mi-registro-' + hoy + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importar(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const nuevos = JSON.parse(e.target.result);
+      if (!Array.isArray(nuevos)) throw new Error();
+      const actuales = getDatos();
+      const mapa = {};
+      actuales.forEach(d => mapa[d.fecha] = d);
+      nuevos.forEach(d => mapa[d.fecha] = d);
+      const combinados = Object.values(mapa).sort((a,b) => a.fecha.localeCompare(b.fecha));
+      setDatos(combinados);
+      render();
+      alert('✅ Datos importados correctamente');
+    } catch {
+      alert('❌ Archivo no válido');
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function render() {
+  const datos = getDatos();
+  const hist = document.getElementById('historial');
+  const svg = document.getElementById('chart');
+
+  if (datos.length === 0) {
+    hist.innerHTML = '<div class="vacio">Aún no hay registros</div>';
+    svg.innerHTML = '';
+    document.getElementById('sPeso').textContent = '-';
+    document.getElementById('sKm').textContent = '0';
+    document.getElementById('sCal').textContent = '0';
+    return;
+  }
+
+  const kmTotal = datos.reduce((s,d) => s + d.km, 0);
+  const calTotal = datos.reduce((s,d) => s + d.cal, 0);
+  const ultimo = datos[datos.length - 1];
+
+  document.getElementById('sPeso').textContent = ultimo.peso + ' kg';
+  document.getElementById('sKm').textContent = kmTotal.toFixed(1);
+  document.getElementById('sCal').textContent = Math.round(calTotal);
+
+  hist.innerHTML = datos.slice().reverse().map(d => `
+    <div class="registro">
+      <div>
+        <div class="fecha">${formatearFecha(d.fecha)}</div>
+        <div class="datos">⚖️ ${d.peso} kg · 🏃 ${d.km} km · 🔥 ${d.cal} cal</div>
+      </div>
+      <button class="borrar" onclick="borrar('${d.fecha}')">✕</button>
+    </div>
+  `).join('');
+
+  const pesos = datos.map(d => d.peso);
+  const min = Math.min(...pesos);
+  const max = Math.max(...pesos);
+  const rango = max - min || 1;
+  const W = 300, H = 140, P = 20;
+
+  if (datos.length === 1) {
+    svg.innerHTML = `<circle cx="150" cy="70" r="6" fill="#0d6efd"/>
+      <text x="150" y="55" text-anchor="middle" font-size="14" font-weight="700" fill="#0d6efd">${pesos[0]} kg</text>`;
+    return;
+  }
+
+  const puntos = datos.map((d,i) => {
+    const x = P + (i / (datos.length - 1)) * (W - P*2);
+    const y = H - P - ((d.peso - min) / rango) * (H - P*2);
+    return {x, y};
+  });
+
+  const linea = puntos.map(p => `${p.x},${p.y}`).join(' ');
+  const circulos = puntos.map(p => `<circle cx="${p.x}" cy="${p.y}" r="4" fill="#0d6efd"/>`).join('');
+
+  svg.innerHTML = `
+    <polyline points="${linea}" fill="none" stroke="#0d6efd" stroke-width="2.5" stroke-linejoin="round"/>
+    ${circulos}
+    <text x="${W-P}" y="14" text-anchor="end" font-size="11" fill="#888">${max} kg</text>
+    <text x="${W-P}" y="${H-4}" text-anchor="end" font-size="11" fill="#888">${min} kg</text>
+  `;
+}
+
+function formatearFecha(f) {
+  const [y,m,d] = f.split('-');
+  const dias = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  const fecha = new Date(y, m-1, d);
+  return `${dias[fecha.getDay()]} ${d}/${m}`;
+}
+
+render();
+</script>
+
+</body>
+</html>
